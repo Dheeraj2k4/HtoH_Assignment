@@ -297,4 +297,12 @@ def main():
     logging.info("Algo trading run complete.")
 
 if __name__ == "__main__":
-    main()
+    import schedule
+    def run_trading():
+        main()
+
+    schedule.every().day.at("15:30").do(run_trading)
+    print("[Scheduler] Trading logic will run every day at 15:30.")
+    while True:
+        schedule.run_pending()
+        time.sleep(30)
