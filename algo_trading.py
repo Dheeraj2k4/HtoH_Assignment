@@ -73,7 +73,7 @@ def calculate_indicators(df):
         df['MACD_signal'] = np.nan
     return df
 
-def generate_signals(df):
+def generate_signals(df, ticker):
     """
     Generate buy/sell signals based on strategy.
     """
@@ -129,7 +129,7 @@ def generate_signals(df):
                 exit_date = df.index[i]
                 pnl = exit_price - entry_price
                 trades.append({
-                    'ticker': df.get('Ticker', 'N/A'),
+                    'ticker': ticker,
                     'entry_date': entry_date,
                     'entry_price': entry_price,
                     'exit_date': exit_date,
@@ -150,7 +150,7 @@ def generate_signals(df):
         exit_date = df.index[-1]
         pnl = exit_price - entry_price
         trades.append({
-            'ticker': df.get('Ticker', 'N/A'),
+            'ticker': ticker,
             'entry_date': entry_date,
             'entry_price': entry_price,
             'exit_date': exit_date,
@@ -270,14 +270,23 @@ def main():
     """
     Main loop for scheduled trading logic.
     """
+    all_trades = []
+    total_pnl = 0.0
+    total_wins = 0
+    total_losses = 0
     for ticker in STOCKS:
         df = fetch_data(ticker)
         if df is not None:
             df = calculate_indicators(df)
-            signals = generate_signals(df)
+            signals = generate_signals(df, ticker)
             backtest_summary = run_backtest(df, signals)
             model, acc = train_ml_model(df)
-            update_google_sheets(backtest_summary, backtest_summary)
+            # Aggregate trades and stats
+            all_trades.extend(backtest_summary['trades'])
+            total_pnl += backtest_summary['total_pnl']
+            wins = int(backtest_summary['win_ratio'] * len(backtest_summary['trades']))
+            total_wins += wins
+            total_losses += len(backtest_summary['trades']) - wins
             # Console output for trade signals
             print(f"\n--- {ticker} Trade Signals ---")
             if signals:
@@ -294,6 +303,13 @@ def main():
             print(f"Win Ratio: {backtest_summary['win_ratio']:.2f}")
             print(f"Trades: {len(backtest_summary['trades'])}")
             print(f"Model Accuracy: {acc:.2f}")
+    # After all stocks, write combined trades and summary
+    combined_summary = {
+        'total_pnl': total_pnl,
+        'win_ratio': total_wins / (total_wins + total_losses) if (total_wins + total_losses) > 0 else 0,
+        'trades': all_trades
+    }
+    update_google_sheets(combined_summary, combined_summary)
     logging.info("Algo trading run complete.")
 
 if __name__ == "__main__":
