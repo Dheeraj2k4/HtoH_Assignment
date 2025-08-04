@@ -1,0 +1,8 @@
+yfinance
+pandas
+pandas_ta
+scikit-learn
+matplotlib
+gspread
+schedule
+python-telegram-bot
